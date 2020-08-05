@@ -9,6 +9,7 @@ if (! isset($_GET['profile_id'])) {
 }
 
 require_once "pdo.php";
+require_once "util.php";
 
 $stmt = $pdo->prepare("SELECT * FROM Profile where profile_id = :profile_id");
 $stmt->execute(array(":profile_id" => $_GET['profile_id']));
@@ -27,6 +28,7 @@ $lastName=htmlentities($row['last_name']);
 $email=htmlentities($row['email']);
 $headline=htmlentities($row['headline']);
 $summary=htmlentities($row['summary']);
+$positions= loadPositions($pdo, $_REQUEST['profile_id']);
 
 ?>
 <!DOCTYPE html>
@@ -35,6 +37,8 @@ $summary=htmlentities($row['summary']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ahmed Helal Ahmed's Profile View</title>
+    <?php include 'head.php'; ?>
+
 </head>
 <body>
 <div class="container">
@@ -50,7 +54,22 @@ $summary=htmlentities($row['summary']);
     <p>Summary:</p>
     <?= $summary ?>
     </div>
-    </p>
+    <?php
+        if (count($positions)>0) {
+            ?>
+    <div>
+    <p>Position</p>
+    <ul>
+        <?php
+            foreach ($positions as $position) {
+                echo('<li>');
+                echo($position['year'].': '.htmlentities($position['description']));
+                echo('</li>');
+            } ?>
+    </ul>
+    </div>
+    <?php
+        } ?>
 <a href="index.php">Done</a>
 </div>
 </body>

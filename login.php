@@ -1,5 +1,7 @@
 <?php
 session_start();
+require_once "pdo.php";
+require_once "util.php";
 
 if (isset($_POST['cancel'])) {
     header("Location: index.php");
@@ -10,8 +12,6 @@ $salt = 'XyZzy12*_';
 
 
 if (isset($_POST['email']) && isset($_POST['pass'])) {
-    require_once "pdo.php";
-
     unset($_SESSION['name']);
     unset($_SESSION['user_id']);
     if (strlen($_POST['email']) < 1 || strlen($_POST['pass']) < 1) {
@@ -51,16 +51,16 @@ if (isset($_POST['email']) && isset($_POST['pass'])) {
 <html>
 <head>
 <title>Ahmed Helal Ahmed's Login Page</title>
+<?php include 'head.php'; ?>
+
 </head>
 <body>
 <div class="container">
 <h1>Please Log In</h1>
 <?php
 
-if (isset($_SESSION['error'])) {
-    echo('<p style="color: red;">'.$_SESSION['error']."</p>\n");
-    unset($_SESSION['error']);
-}
+flashMessages();
+
 ?>
 <form method="POST">
 <label for="email">Email</label>

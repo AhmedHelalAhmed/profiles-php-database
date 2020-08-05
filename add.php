@@ -1,14 +1,13 @@
 <?php
 
 session_start();
-
-require_once "helpers.php";
+require_once "pdo.php";
+require_once "util.php";
 isAllowed();
 if (isset($_POST['cancel'])) {
     header('Location: index.php');
     return;
 }
-require_once "pdo.php";
 
 if ($_POST) {
     $firstName=$_POST['first_name'];
@@ -16,30 +15,28 @@ if ($_POST) {
     $email=$_POST['email'];
     $headline=$_POST['headline'];
     $summary=$_POST['summary'];
-    if (
-        strlen($firstName)<1
-        ||
-        strlen($lastName)<1
-        ||
-        strlen($email)<1
-        ||
-        strlen($headline)<1
-        ||
-        strlen($summary)<1
-        ) {
-        $_SESSION['error'] = "All fields are required";
+
+    $message=validateProfile();
+
+    if (is_string($message)) {
+        $_SESSION['error']=$message;
         header("Location: add.php");
         return;
     }
 
-    if (strpos($_POST['email'], '@')===false) {
-        $_SESSION['error'] = "Email address must contain @";
+
+    $message=validatePosition();
+
+    if (is_string($message)) {
+        $_SESSION['error']=$message;
         header("Location: add.php");
         return;
     }
-    
+
     try {
-        $stmt = $pdo->prepare('INSERT INTO Profile(first_name, last_name, email, headline, summary, user_id) VALUES ( :fn, :ln, :em, :he, :su, :uid)');
+        $stmt = $pdo->prepare('INSERT INTO Profile
+        (first_name, last_name, email, headline, summary, user_id)
+         VALUES ( :fn, :ln, :em, :he, :su, :uid)');
         $stmt->execute(
             array(
                 ':fn' => $firstName,
@@ -50,6 +47,32 @@ if ($_POST) {
                 ':uid'=> $_SESSION['user_id']
                 )
         );
+        $profile_id = $pdo->lastInsertId();
+        $rank = 1;
+        for ($i=1; $i<=9; $i++) {
+            if (!isset($_POST['year'.$i])) {
+                continue;
+            }
+            if (!isset($_POST['description'.$i])) {
+                continue;
+            }
+            $year=$_POST['year'.$i];
+            $description= $_POST['description'.$i];
+
+            $stmt = $pdo->prepare('INSERT INTO Position
+        (profile_id, rank, year, description)
+         VALUES ( :pid, :rank, :year, :desc)');
+            $stmt->execute(
+                array(
+                ':pid' => $profile_id,
+                ':rank' => $rank,
+                ':year' => $year,
+                ':desc' => $description,
+            
+                )
+            );
+            $rank++;
+        }
         $_SESSION['success'] = "Profile added";
         header("Location: index.php");
         return;
@@ -67,15 +90,13 @@ if ($_POST) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ahmed Helal Ahmed's Profile Add</title>
+    <?php include 'head.php'; ?>
 </head>
 <body>
-    <div>
+    <div class="container">
         <h1>Adding Profile for <?= $_SESSION['name'] ?></h1>
         <?php
-            if (isset($_SESSION['error'])) {
-                echo('<p style="color: red;">'.$_SESSION['error']."</p>\n");
-                unset($_SESSION['error']);
-            }
+           flashMessages();
         ?>       
         <form method="post">
         <p>First Name:
@@ -90,10 +111,39 @@ if ($_POST) {
         <textarea name="summary" rows="8" cols="80"></textarea>
         </p>
         <p>
+            Position: <input type="submit" id="addPos" value="+">
+        </p>
+        <div id="position_fields">
+        </div>
+        <p>
         <input type="submit" value="Add">
         <input type="submit" name="cancel" value="Cancel">
         </p>
         </form>
     </div>
+    <script>
+    countPos = 0;
+    // http://stackoverflow.com/questions/17650776/add-remove-html-inside-div-using-javascript
+    $(document).ready(function(){
+        window.console && console.log('Document ready called');
+        $('#addPos').click(function(event){
+            // http://api.jquery.com/event.preventdefault/
+            event.preventDefault();
+            if ( countPos >= 9 ) {
+                alert("Maximum of nine position entries exceeded");
+                return;
+            }
+            countPos++;
+            window.console && console.log("Adding position "+countPos);
+            $('#position_fields').append(
+                '<div id="position'+countPos+'"> \
+                <p>Year: <input type="text" name="year'+countPos+'" value="" /> \
+                <input type="button" value="-" \
+                    onclick="$(\'#position'+countPos+'\').remove();return false;"></p> \
+                <textarea name="description'+countPos+'" rows="8" cols="80"></textarea>\
+                </div>');
+        });
+    });
+</script>
 </body>
 </html>

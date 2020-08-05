@@ -1,13 +1,13 @@
 <?php
 session_start();
-
-require_once "helpers.php";
+require_once "pdo.php";
+require_once "util.php";
 isAllowed();
 if (isset($_POST['cancel'])) {
     header('Location: index.php');
     return;
 }
-require_once "pdo.php";
+
 if ($_POST) {
     $firstName=$_POST['first_name'];
     $lastName=$_POST['last_name'];
@@ -15,29 +15,20 @@ if ($_POST) {
     $headline=$_POST['headline'];
     $summary=$_POST['summary'];
 
-    if (
-        strlen($firstName)<1
-        ||
-        strlen($lastName)<1
-        ||
-        strlen($email)<1
-        ||
-        strlen($headline)<1
-        ||
-        strlen($summary)<1
-        ) {
-        $_SESSION['error'] = "All fields are required";
+    $message=validateProfile();
+
+    if (is_string($message)) {
+        $_SESSION['error']=$message;
         header("Location: edit.php?profile_id=".$_POST['profile_id']);
         return;
     }
+    $message=validatePosition();
 
-    if (strpos($_POST['email'], '@')===false) {
-        $_SESSION['error'] = "Email address must contain @";
-        header("Location: edit.php?profile_id=".$_POST['profile_id']);
+    if (is_string($message)) {
+        $_SESSION['error']=$message;
+        header("Location: add.php");
         return;
     }
-
-
     
     try {
         $sql = "UPDATE Profile SET first_name = :first_name, last_name = :last_name,
@@ -56,7 +47,36 @@ if ($_POST) {
                     ':profile_id' => $_POST['profile_id']
                     )
         );
-   
+
+        $stmt = $pdo->prepare('DELETE FROM Position WHERE profile_id = :profile_id');
+        $stmt->execute(array(':profile_id' =>$_REQUEST['profile_id']));
+        $rank=1;
+        for ($i=1; $i<=9; $i++) {
+            if (!isset($_POST['year'.$i])) {
+                continue;
+            }
+            if (!isset($_POST['description'.$i])) {
+                continue;
+            }
+            $year=$_POST['year'.$i];
+            $description= $_POST['description'.$i];
+
+            $stmt = $pdo->prepare('INSERT INTO Position
+        (profile_id, rank, year, description)
+         VALUES ( :pid, :rank, :year, :desc)');
+            $stmt->execute(
+                array(
+                ':pid' => $_REQUEST['profile_id'],
+                ':rank' => $rank,
+                ':year' => $year,
+                ':desc' => $description,
+            
+                )
+            );
+            $rank++;
+        }
+
+
         $_SESSION['success'] = "Profile updated";
         header("Location: index.php");
         return;
@@ -90,6 +110,9 @@ $email=htmlentities($row['email']);
 $headline=htmlentities($row['headline']);
 $summary=htmlentities($row['summary']);
 $profile_id = $row['profile_id'];
+
+$positions= loadPositions($pdo, $_REQUEST['profile_id']);
+$pos =count($positions);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -97,15 +120,15 @@ $profile_id = $row['profile_id'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ahmed Helal Ahmed's Profile Edit</title>
+    <?php include 'head.php'; ?>
+
 </head>
 <body>
-    <div>
+    <div class="container">
         <h1>Editing Profile for <?= $_SESSION['name'] ?></h1>
         <?php
-            if (isset($_SESSION['error'])) {
-                echo('<p style="color: red;">'.htmlentities($_SESSION['error'])."</p>\n");
-                unset($_SESSION['error']);
-            }
+          flashMessages();
+
         ?>       
         <form method="post">
             <p>First Name:
@@ -119,10 +142,60 @@ $profile_id = $row['profile_id'];
             <p>Summary:<br>
             <textarea name="summary" rows="8" cols="80"><?= $summary ?></textarea>
             </p>
+            <p>
+            Position: <input type="submit" id="addPos" value="+">
+            </p>
+            <div id="position_fields">
+
+            <?php
+
+            foreach ($positions as $key => $position) {
+                echo('<div id="'.'position'.($key+1).'">');
+                echo('<p>');
+                echo('Year: <input type="text" name="year'.($key+1).'" value="'.$position['year'].'">');
+                echo('<input type="button" value="-" onclick="$(\'#position'.($key+1).'\').remove();return false;">');
+                echo('</p>');
+                echo('<textarea name="description'.($key+1).'" rows="8" cols="80">');
+                echo(htmlentities($position['description']));
+                echo('</textarea>');
+
+                echo('</div>');
+            }
+                ?>
+            </div>
+        
             <input type="hidden" name="profile_id" value="<?= $profile_id ?>">
             <input type="submit" value="Save">
             <input type="submit" name="cancel" value="Cancel">
         </form>
     </div>
+
+
+
+<script>
+countPos = <?= $pos ?>;
+
+// http://stackoverflow.com/questions/17650776/add-remove-html-inside-div-using-javascript
+$(document).ready(function(){
+    window.console && console.log('Document ready called');
+    $('#addPos').click(function(event){
+        // http://api.jquery.com/event.preventdefault/
+        event.preventDefault();
+        if ( countPos >= 9 ) {
+            alert("Maximum of nine position entries exceeded");
+            return;
+        }
+        countPos++;
+        window.console && console.log("Adding position "+countPos);
+        $('#position_fields').append(
+            '<div id="position'+countPos+'"> \
+            <p>Year: <input type="text" name="year'+countPos+'" value="" /> \
+            <input type="button" value="-" \
+            onclick="$(\'#position'+countPos+'\').remove();return false;"></p> \
+            <textarea name="description'+countPos+'" rows="8" cols="80"></textarea>\
+            </div>');
+    });
+});
+</script>
 </body>
 </html>
