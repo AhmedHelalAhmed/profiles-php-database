@@ -29,6 +29,7 @@ $email=htmlentities($row['email']);
 $headline=htmlentities($row['headline']);
 $summary=htmlentities($row['summary']);
 $positions= loadPositions($pdo, $_REQUEST['profile_id']);
+$educations= loadEdu($pdo, $_REQUEST['profile_id']);
 
 ?>
 <!DOCTYPE html>
@@ -54,6 +55,25 @@ $positions= loadPositions($pdo, $_REQUEST['profile_id']);
     <p>Summary:</p>
     <?= $summary ?>
     </div>
+
+    <?php
+        if (count($educations)>0) {
+            ?>
+    <div>
+    <p>Education</p>
+    <ul>
+        <?php
+            foreach ($educations as $education) {
+                echo('<li>');
+                echo($education['year'].': '.htmlentities($education['name']));
+                echo('</li>');
+            } ?>
+    </ul>
+    </div>
+    <?php
+        } ?>
+
+
     <?php
         if (count($positions)>0) {
             ?>

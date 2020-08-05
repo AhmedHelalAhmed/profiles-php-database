@@ -33,6 +33,14 @@ if ($_POST) {
         return;
     }
 
+
+    $message=validateEducation();
+    if (is_string($message)) {
+        $_SESSION['error']=$message;
+        header("Location: add.php");
+        return;
+    }
+    
     try {
         $stmt = $pdo->prepare('INSERT INTO Profile
         (first_name, last_name, email, headline, summary, user_id)
@@ -48,31 +56,8 @@ if ($_POST) {
                 )
         );
         $profile_id = $pdo->lastInsertId();
-        $rank = 1;
-        for ($i=1; $i<=9; $i++) {
-            if (!isset($_POST['year'.$i])) {
-                continue;
-            }
-            if (!isset($_POST['description'.$i])) {
-                continue;
-            }
-            $year=$_POST['year'.$i];
-            $description= $_POST['description'.$i];
-
-            $stmt = $pdo->prepare('INSERT INTO Position
-        (profile_id, rank, year, description)
-         VALUES ( :pid, :rank, :year, :desc)');
-            $stmt->execute(
-                array(
-                ':pid' => $profile_id,
-                ':rank' => $rank,
-                ':year' => $year,
-                ':desc' => $description,
-            
-                )
-            );
-            $rank++;
-        }
+        insertPositions($pdo, $profile_id);
+        insertEducations($pdo, $profile_id);
         $_SESSION['success'] = "Profile added";
         header("Location: index.php");
         return;
@@ -111,6 +96,11 @@ if ($_POST) {
         <textarea name="summary" rows="8" cols="80"></textarea>
         </p>
         <p>
+        Education: <input type="submit" id="addEdu" value="+">
+        </p>
+        <div id="edu_fields">
+        </div>
+        <p>
             Position: <input type="submit" id="addPos" value="+">
         </p>
         <div id="position_fields">
@@ -123,9 +113,12 @@ if ($_POST) {
     </div>
     <script>
     countPos = 0;
+    countEdu = 0;
+
     // http://stackoverflow.com/questions/17650776/add-remove-html-inside-div-using-javascript
     $(document).ready(function(){
         window.console && console.log('Document ready called');
+
         $('#addPos').click(function(event){
             // http://api.jquery.com/event.preventdefault/
             event.preventDefault();
@@ -138,11 +131,34 @@ if ($_POST) {
             $('#position_fields').append(
                 '<div id="position'+countPos+'"> \
                 <p>Year: <input type="text" name="year'+countPos+'" value="" /> \
-                <input type="button" value="-" \
-                    onclick="$(\'#position'+countPos+'\').remove();return false;"></p> \
+                <input type="button" value="-" onclick="$(\'#position'+countPos+'\').remove();return false;"><br>\
                 <textarea name="description'+countPos+'" rows="8" cols="80"></textarea>\
                 </div>');
         });
+
+        $('#addEdu').click(function(event){
+            event.preventDefault();
+            if ( countEdu >= 9 ) {
+                alert("Maximum of nine education entries exceeded");
+                return;
+            }
+            countEdu++;
+            window.console && console.log("Adding education "+countEdu);
+
+            $('#edu_fields').append(
+                '<div id="edu'+countEdu+'"> \
+                <p>Year: <input type="text" name="edu_year'+countEdu+'" value="" /> \
+                <input type="button" value="-" onclick="$(\'#edu'+countEdu+'\').remove();return false;"><br>\
+                <p>School: <input type="text" size="80" name="edu_school'+countEdu+'" class="school" value="" />\
+                </p></div>'
+            );
+
+            $('.school').autocomplete({
+                source: "school.php"
+            });
+
+        });
+
     });
 </script>
 </body>
